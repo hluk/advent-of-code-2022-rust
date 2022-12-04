@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::prelude::*;
 
-fn count<Filter: Fn(&Vec<u32>) -> bool>(input: &str, filter: Filter) -> usize {
+fn count<Filter: Fn(u32, u32, u32, u32) -> bool>(input: &str, filter: Filter) -> usize {
     input
         .split("\n")
         .filter(|line| !line.is_empty())
@@ -10,23 +10,21 @@ fn count<Filter: Fn(&Vec<u32>) -> bool>(input: &str, filter: Filter) -> usize {
                 .map(|x| x.parse::<u32>().unwrap())
                 .collect()
         })
-        .filter(filter)
+        .filter(|x: &Vec<u32>| filter(x[0], x[1], x[2], x[3]))
         .count()
 }
 
 fn solution1(input: &str) -> usize {
-    count(input, |x| {
-        (x[0] >= x[2] && x[1] <= x[3]) ||
-        (x[2] >= x[0] && x[3] <= x[1])
+    count(input, |a, b, c, d| {
+        (a >= c && b <= d) ||
+        (c >= a && d <= b)
     })
 }
 
 fn solution2(input: &str) -> usize {
-    count(input, |x| {
-        (x[0] >= x[2] && x[0] <= x[3]) ||
-        (x[1] >= x[2] && x[1] <= x[3]) ||
-        (x[2] >= x[0] && x[2] <= x[1]) ||
-        (x[2] >= x[0] && x[2] <= x[1])
+    count(input, |a, b, c, d| {
+        (a >= c && a <= d) ||
+        (c >= a && c <= b)
     })
 }
 
