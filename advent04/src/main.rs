@@ -1,40 +1,33 @@
 use std::fs::File;
 use std::io::prelude::*;
 
-fn solution1(input: &String) -> usize {
+fn count<Filter: Fn(&Vec<u32>) -> bool>(input: &str, filter: Filter) -> usize {
     input
         .split("\n")
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let x: Vec<u32> = line.split(|x| x == ',' || x == '-')
-                .map(|x| {
-                    x.parse::<u32>().unwrap()
-                })
-                .collect();
-            (x[0] >= x[2] && x[1] <= x[3]) ||
-            (x[2] >= x[0] && x[3] <= x[1])
+            line.split(|x| x == ',' || x == '-')
+                .map(|x| x.parse::<u32>().unwrap())
+                .collect()
         })
-        .filter(|&x| x)
+        .filter(filter)
         .count()
 }
 
-fn solution2(input: &String) -> usize {
-    input
-        .split("\n")
-        .filter(|line| !line.is_empty())
-        .map(|line| {
-            let x: Vec<u32> = line.split(|x| x == ',' || x == '-')
-                .map(|x| {
-                    x.parse::<u32>().unwrap()
-                })
-                .collect();
-            (x[0] >= x[2] && x[0] <= x[3]) ||
-            (x[1] >= x[2] && x[1] <= x[3]) ||
-            (x[2] >= x[0] && x[2] <= x[1]) ||
-            (x[2] >= x[0] && x[2] <= x[1])
-        })
-        .filter(|&x| x)
-        .count()
+fn solution1(input: &str) -> usize {
+    count(input, |x| {
+        (x[0] >= x[2] && x[1] <= x[3]) ||
+        (x[2] >= x[0] && x[3] <= x[1])
+    })
+}
+
+fn solution2(input: &str) -> usize {
+    count(input, |x| {
+        (x[0] >= x[2] && x[0] <= x[3]) ||
+        (x[1] >= x[2] && x[1] <= x[3]) ||
+        (x[2] >= x[0] && x[2] <= x[1]) ||
+        (x[2] >= x[0] && x[2] <= x[1])
+    })
 }
 
 fn read_file(file_path: &str) -> String {
