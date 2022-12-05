@@ -17,7 +17,7 @@ struct Plan {
 
 fn parse_stacks(input: &str) -> Stacks {
     let crate_lines: Vec<String> = input
-        .split("\n")
+        .split('\n')
         .map(|line| {
             line.chars()
                 .skip(1)
@@ -37,9 +37,9 @@ fn parse_stacks(input: &str) -> Stacks {
 
 fn parse_moves(input: &str) -> Vec<Move> {
     input
-        .split("\n")
+        .split('\n')
         .map(|line| {
-            line.split(" ")
+            line.split(' ')
                 .skip(1)
                 .step_by(2)
                 .map(|x| x.parse::<u8>().unwrap())
@@ -63,8 +63,8 @@ impl Plan {
             .collect();
 
         Plan {
-            stacks: parse_stacks(&parts[0]),
-            moves: parse_moves(&parts[1]),
+            stacks: parse_stacks(parts[0]),
+            moves: parse_moves(parts[1]),
         }
     }
 }
@@ -95,11 +95,11 @@ fn move_crates(plan: &Plan, grab_multiple: bool) -> String {
 }
 
 fn solution1(plan: &Plan) -> String {
-    move_crates(&plan, false)
+    move_crates(plan, false)
 }
 
 fn solution2(plan: &Plan) -> String {
-    move_crates(&plan, true)
+    move_crates(plan, true)
 }
 
 fn read_file(file_path: &str) -> String {
@@ -108,8 +108,7 @@ fn read_file(file_path: &str) -> String {
     let mut input = String::new();
     input_file.read_to_string(&mut input)
         .expect("something went wrong reading the file");
-
-    return input;
+    input
 }
 
 #[cfg(test)]
