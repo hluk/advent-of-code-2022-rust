@@ -8,69 +8,70 @@ struct Move {
 }
 
 type Crates = Vec<char>;
+type Stacks = [Crates; 9];
 
 struct Plan {
-    stacks: Vec<Crates>,
+    stacks: Stacks,
     moves: Vec<Move>,
+}
+
+fn parse_stacks(input: &str) -> Stacks {
+    let crate_lines: Vec<String> = input
+        .split("\n")
+        .map(|line| {
+            line.chars()
+                .skip(1)
+                .step_by(4)
+                .collect()
+        })
+        .collect();
+
+    let mut stacks: Stacks = core::array::from_fn(|_i| Vec::new());
+    for crate_line in crate_lines[0..crate_lines.len() - 1].iter() {
+        for (stack, c) in crate_line.chars().enumerate().filter(|(_i, c)| *c != ' ') {
+            stacks[stack].insert(0, c)
+        }
+    }
+    stacks
+}
+
+fn parse_moves(input: &str) -> Vec<Move> {
+    input
+        .split("\n")
+        .map(|line| {
+            line.split(" ")
+                .skip(1)
+                .step_by(2)
+                .map(|x| x.parse::<u8>().unwrap())
+                .collect()
+        })
+        .map(|xs: Vec<u8>| {
+            Move {
+                amount: xs[0],
+                from: xs[1] - 1,
+                to: xs[2] - 1,
+            }
+        })
+        .collect()
 }
 
 impl Plan {
     fn from_string(input: &str) -> Plan {
         let parts: Vec<&str> = input
+            .trim_end()
             .split("\n\n")
-            .filter(|line| !line.is_empty())
             .collect();
-
-        let moves: Vec<Move> = parts[1]
-            .split("\n")
-            .filter(|line| !line.is_empty())
-            .map(|line| {
-                line.split(" ")
-                    .filter(|x| x.chars().next().unwrap().is_ascii_digit())
-                    .map(|x| x.parse::<u8>().unwrap())
-                    .collect()
-            })
-            .map(|xs: Vec<u8>| {
-                Move {
-                    amount: xs[0],
-                    from: xs[1] - 1,
-                    to: xs[2] - 1,
-                }
-            })
-            .collect();
-
-        let mut crate_lines: Vec<String> = parts[0]
-            .split("\n")
-            .map(|line| {
-                line.chars()
-                    .enumerate()
-                    .filter(|(i, _x)| i % 4 == 1)
-                    .map(|(_i, x)| x)
-                    .collect()
-            })
-            .collect();
-        crate_lines.truncate(crate_lines.len() - 1);
-
-        let mut stacks = Vec::<Crates>::with_capacity(9);
-        for crate_line in crate_lines {
-            for (stack, c) in crate_line.chars().enumerate() {
-                if stack == stacks.len() {
-                    stacks.push(Crates::new())
-                }
-                if c == ' ' { continue }
-                stacks[stack].insert(0, c)
-            }
-        }
 
         Plan {
-            stacks: stacks,
-            moves: moves,
+            stacks: parse_stacks(&parts[0]),
+            moves: parse_moves(&parts[1]),
         }
     }
 }
 
-fn top(stacks: &Vec<Crates>) -> String {
+fn top(stacks: &Stacks) -> String {
     stacks.iter()
+        .filter(|x| !x.is_empty())
         .map(|x| x[x.len() - 1])
         .collect()
 }
