@@ -1,35 +1,29 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::collections::HashMap;
 
 const MAX_DIR_SIZE: u32 = 100000;
 const TOTAL_SIZE: u32 = 70000000;
 const NEEDED_SIZE: u32 = 30000000;
 
 fn sizes(input: &str) -> Vec<u32> {
-    let mut cwd = Vec::new();
-    let mut sizes = HashMap::<Vec::<&str>, u32>::new();
+    let mut sizes = Vec::new();
+    let mut path_length = 0;
     for line in input.lines() {
-        if line == "$ ls" || line.starts_with("dir ") {
-            continue
-        }
-
-        if line == "$ cd /" {
-            cwd.clear();
+        if line.chars().next().unwrap().is_ascii_digit() {
+            let size = line.split(' ').next().unwrap().parse::<u32>().unwrap();
+            sizes[path_length - 1] += size;
         } else if line == "$ cd .." {
-            cwd.pop();
+            path_length -= 1;
+            sizes[path_length - 1] += sizes[path_length];
         } else if line.starts_with("$ cd ") {
-            cwd.push(line.strip_prefix("$ cd ").unwrap());
-        } else {
-            let x: Vec<&str> = line.split(' ').collect();
-            let size = x[0].parse::<u32>().unwrap();
-            for i in 0..=cwd.len() {
-                let dir_size = sizes.entry(cwd[..i].to_vec()).or_insert(0);
-                *dir_size += size;
-            }
+            sizes.insert(path_length, 0);
+            path_length += 1;
         }
     }
-    sizes.values().cloned().collect()
+    for i in 1..path_length {
+        sizes[path_length - i - 1] += sizes[path_length - i];
+    }
+    sizes
 }
 
 fn solution1(input: &str) -> u32 {
