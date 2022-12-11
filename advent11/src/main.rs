@@ -8,8 +8,7 @@ struct Monkey {
     items: Vec<u64>,
     operation: Operation,
     test_div: u64,
-    throw_true: usize,
-    throw_false: usize,
+    throw: [usize; 2],
     inspect_count: usize,
 }
 
@@ -17,31 +16,40 @@ impl Monkey {
     fn from_input(input: &str) -> Self {
         let mut line = input.split('\n').skip(1);
 
-        let items = line.next().unwrap().split(": ").skip(1).next().unwrap()
-            .split(", ").map(|x| x.parse::<u64>().unwrap()).collect();
+        let items = line.next().unwrap()
+            .strip_prefix("  Starting items: ").unwrap()
+            .split(", ")
+            .map(|x| x.parse::<u64>().unwrap())
+            .collect();
 
-        let op = line.next().unwrap().split(": ").skip(1).next().unwrap();
-        let operand = op.split(' ').last().unwrap().parse::<u64>().unwrap_or(0);
-        let operation: Operation = if op == "new = old * old" {
+        let op = line.next().unwrap()
+            .strip_prefix("  Operation: new = old ").unwrap();
+        let operand = op[2..op.len()].parse::<u64>().unwrap_or(0);
+        let operation: Operation = if op == "* old" {
             Box::new(|old| old * old)
-        } else if op.starts_with("new = old + ") {
+        } else if op.starts_with('+') {
             Box::new(move |old| old + operand)
-        } else if op.starts_with("new = old * ") {
+        } else if op.starts_with('*') {
             Box::new(move |old| old * operand)
         } else {
             panic!("Unexpected operation: {}", op);
         };
 
-        let test_div = line.next().unwrap().split(' ').last().unwrap().parse::<u64>().unwrap_or(0);
-        let throw_true = line.next().unwrap().split(' ').last().unwrap().parse::<usize>().unwrap_or(0);
-        let throw_false = line.next().unwrap().split(' ').last().unwrap().parse::<usize>().unwrap_or(0);
+        let test_div = line.next().unwrap()
+            .strip_prefix("  Test: divisible by ").unwrap()
+            .parse::<u64>().unwrap();
+        let throw_true =line.next().unwrap()
+            .strip_prefix("    If true: throw to monkey ").unwrap()
+            .parse::<usize>().unwrap();
+        let throw_false = line.next().unwrap()
+            .strip_prefix("    If false: throw to monkey ").unwrap()
+            .parse::<usize>().unwrap();
 
         Monkey {
             items: items,
             operation: operation,
             test_div: test_div,
-            throw_true: throw_true,
-            throw_false: throw_false,
+            throw: [throw_false, throw_true],
             inspect_count: 0,
         }
     }
@@ -63,19 +71,16 @@ fn solution<Transform: Fn(u64) -> u64>(monkeys: &mut Vec<Monkey>, rounds: usize,
             monkeys[i].inspect_count += items.len();
             for old in items {
                 let item = transform((monkeys[i].operation)(old));
-                let target_monkey = if item % monkeys[i].test_div == 0 {
-                    monkeys[i].throw_true
-                } else {
-                    monkeys[i].throw_false
-                };
+                let target_monkey = monkeys[i].throw[(item % monkeys[i].test_div == 0) as usize];
                 monkeys[target_monkey].items.push(item);
             }
         }
     }
 
-    let mut counts: Vec<usize> = monkeys.iter().map(|m| m.inspect_count).collect();
-    counts.sort();
-    counts[counts.len() - 2] * counts[counts.len() - 1]
+    monkeys.iter().fold((1, 1, 1), |x, m| {
+        let c = m.inspect_count.max(x.2);
+        (x.0 / x.2 * c, c.max(x.1), c.min(x.1))
+    }).0
 }
 
 fn solution1(input: &str) -> usize {
