@@ -38,7 +38,7 @@ impl Monkey {
         let test_div = line.next().unwrap()
             .strip_prefix("  Test: divisible by ").unwrap()
             .parse::<u64>().unwrap();
-        let throw_true =line.next().unwrap()
+        let throw_true = line.next().unwrap()
             .strip_prefix("    If true: throw to monkey ").unwrap()
             .parse::<usize>().unwrap();
         let throw_false = line.next().unwrap()
@@ -46,9 +46,9 @@ impl Monkey {
             .parse::<usize>().unwrap();
 
         Monkey {
-            items: items,
-            operation: operation,
-            test_div: test_div,
+            items,
+            operation,
+            test_div,
             throw: [throw_false, throw_true],
             inspect_count: 0,
         }
@@ -59,7 +59,7 @@ fn parse_monkeys(input: &str) -> Vec<Monkey> {
     input
         .trim_end()
         .split("\n\n")
-        .map(|lines| Monkey::from_input(lines))
+        .map(Monkey::from_input)
         .collect()
 }
 
