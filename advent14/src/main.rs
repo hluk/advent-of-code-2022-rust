@@ -1,10 +1,14 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashSet;
+use std::{thread, time};
 
 type Pos = (u16, u16);
 type Map = HashSet<Pos>;
 const SAND: Pos = (500, 0);
+const RENDER_COLUMNS: u16 = 200;
+const RENDER_LINES: u16 = 50;
+const OFFSET: u16 = RENDER_LINES / 10;
 
 fn parse_map(input: &str) -> Map {
     input
@@ -32,8 +36,72 @@ fn parse_map(input: &str) -> Map {
         }).collect()
 }
 
+fn render_static(map: &Map, blocks: &Map, current: Pos, render_pos: &Pos) {
+    let x1 = if render_pos.0 < RENDER_COLUMNS/2 { 0 } else { render_pos.0 - RENDER_COLUMNS/2 };
+    let x2 = x1 + RENDER_COLUMNS;
+
+    let y1 = if render_pos.1 < RENDER_LINES/2 { 0 } else { render_pos.1 - RENDER_LINES/2 };
+    let y2 = y1 + RENDER_LINES;
+
+    let render: String = (y1..y2).map(|y| {
+        (x1..x2).map(|x| {
+            let pos = (x, y);
+            let c = if blocks.contains(&pos) {
+                '#'
+            } else if map.contains(&pos) {
+                'o'
+            } else if pos == SAND {
+                '+'
+            } else {
+                '.'
+            };
+            if pos == current {
+                format!("\x1b[31;1;4m{}\x1b[0m", c)
+            } else if c == 'o' {
+                format!("\x1b[33;1;4m{}\x1b[0m", c)
+            } else if c == '+' {
+                format!("\x1b[34;1;4m{}\x1b[0m", c)
+            } else {
+                format!("{}", c)
+            }
+        }).collect::<String>()
+    })
+    .fold(String::new(), |a, b| a + &b + "\n");
+    print!("{}", render);
+    print!("\x1b[{}A", y2 - y1 + 1);
+    thread::sleep(time::Duration::from_millis(1));
+}
+
+fn render(map: &Map, blocks: &Map, current: Pos, render_pos: &mut Pos) {
+    let mut scroll = true;
+    while scroll {
+        render_static(map, blocks, current, render_pos);
+
+        scroll = false;
+        if current.0 + RENDER_COLUMNS/2 <= render_pos.0 + OFFSET || current.0 + OFFSET >= render_pos.0 + RENDER_COLUMNS/2 {
+            scroll = true;
+            if render_pos.0 < current.0 {
+                *render_pos = (render_pos.0 + OFFSET, render_pos.1);
+            } else {
+                *render_pos = (render_pos.0 - OFFSET, render_pos.1);
+            }
+        }
+
+        if current.1 + RENDER_LINES/2 <= render_pos.1 + OFFSET || current.1 + OFFSET >= render_pos.1 + RENDER_LINES/2 {
+            scroll = true;
+            if render_pos.1 < current.1 {
+                *render_pos = (render_pos.0, render_pos.1 + OFFSET);
+            } else {
+                *render_pos = (render_pos.0, render_pos.1 - OFFSET);
+            }
+        }
+    }
+}
+
 fn solution(map: &mut Map) -> usize {
     let block_count = map.len();
+    let blocks = map.clone();
+    let mut render_pos = (SAND.0, SAND.1 + RENDER_LINES/2);
     let max_y = map.iter().max_by_key(|p| p.1).unwrap().1;
     let mut land_y = map.iter()
         .filter(|p| p.0 == SAND.0)
@@ -66,6 +134,8 @@ fn solution(map: &mut Map) -> usize {
         if (x, y) == SAND {
             return map.len() - block_count;
         }
+
+        render(&map, &blocks, (x, y), &mut render_pos);
     }
 }
 
