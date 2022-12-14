@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::collections::HashSet;
 
-type Pos = (i32, i32);
+type Pos = (u16, u16);
 type Map = HashSet<Pos>;
 const SAND: Pos = (500, 0);
 
@@ -13,7 +13,7 @@ fn parse_map(input: &str) -> Map {
         .flat_map(|line| {
             let ps: Vec<Pos> = line.split(" -> ")
                 .map(|pos| {
-                    let mut it = pos.split(',').map(|x| x.parse::<i32>().unwrap());
+                    let mut it = pos.split(',').map(|x| x.parse::<u16>().unwrap());
                     (it.next().unwrap(), it.next().unwrap())
                 }).collect();
             ps.windows(2).flat_map(|p2| -> Vec<Pos> {
@@ -42,30 +42,28 @@ fn solution(map: &mut Map) -> usize {
         }).unwrap().1;
 
     loop {
-        let mut land = (SAND.0, land_y);
+        let (mut x, mut y) = (SAND.0, land_y);
 
         loop {
-            while !map.contains(&(land.0, land.1)) {
-                land = (land.0, land.1 + 1);
-                if land.1 > max_y {
+            if !map.contains(&(x, y)) {
+                y += 1;
+                if y > max_y {
                     return map.len() - block_count;
                 }
-            }
-
-            if !map.contains(&(land.0 - 1, land.1)) {
-                land = (land.0 - 1, land.1 + 1);
-            } else if !map.contains(&(land.0 + 1, land.1)) {
-                land = (land.0 + 1, land.1 + 1);
+            } else if !map.contains(&(x - 1, y)) {
+                x -= 1;
+            } else if !map.contains(&(x + 1, y)) {
+                x += 1;
             } else {
                 break;
             }
         }
 
-        land = (land.0, land.1 - 1);
-        land_y = land_y.min(land.1);
-        map.insert(land);
+        y -= 1;
+        land_y = land_y.min(y);
+        map.insert((x, y));
 
-        if land == SAND {
+        if (x, y) == SAND {
             return map.len() - block_count;
         }
     }
