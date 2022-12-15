@@ -35,6 +35,7 @@ fn manhattan(a: Pos, b: Pos) -> u32 {
 
 fn solution1(input: &str, row: i32) -> usize {
     let sensors = parse(input);
+    // Assumes that sensors overlap on given row without any uncovered locations.
     let xs = sensors.iter().fold((i32::MAX, i32::MIN), |xs, sensor| {
         let d_row = sensor.pos.1.abs_diff(row) as i32;
         let d = sensor.distance - d_row;
@@ -49,23 +50,22 @@ fn solution1(input: &str, row: i32) -> usize {
 
 fn solution2(input: &str, max: i32) -> i64 {
     let sensors = parse(input);
+    // Assumes that there is a single uncovered location in-between all the sensors.
     for sensor in &sensors {
-        let y1 = (sensor.pos.1 - sensor.distance).max(0);
+        let y1 = sensor.pos.1;
         let y2 = (sensor.pos.1 + sensor.distance).min(max);
         for y in y1..y2 {
-            let d_row = sensor.pos.1.abs_diff(y) as i32;
+            let d_row = y - sensor.pos.1;
             let d = sensor.distance - d_row;
-            if d > 0 {
-                let x = sensor.pos.0 + d + 1;
-                if x < 0 || x > max { continue; }
-                let intersects = sensors.iter().any(|p| {
-                    let d_row = p.pos.1.abs_diff(y) as i32;
-                    let d = p.distance - d_row;
-                    d > 0 && p.pos.0 - d <= x && x <= p.pos.0 + d
-                });
-                if !intersects {
-                    return x as i64 * 4000000 + y as i64;
-                }
+            let x = sensor.pos.0 + d + 1;
+            if x < 0 || x > max { continue; }
+            let intersects = sensors.iter().any(|p| {
+                let d_row = p.pos.1.abs_diff(y) as i32;
+                let d = p.distance - d_row;
+                d > 0 && p.pos.0 - d <= x && x <= p.pos.0 + d
+            });
+            if !intersects {
+                return x as i64 * 4000000 + y as i64;
             }
         }
     }
