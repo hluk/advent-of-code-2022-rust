@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 type ValveId = u8;
 struct Valve {
@@ -31,7 +32,6 @@ fn parse(input: &str) -> (u8, Valves) {
             (valve, Valve {rate, next})
         });
     let valves = HashMap::from_iter(valves_it);
-    //dbg!(&valve_ids);
     (valve_ids["AA"], valves)
 }
 
@@ -89,23 +89,55 @@ impl PartialOrd for State {
     }
 }
 
+struct Visited<Key> {
+    visited: HashMap<(Key, usize, u64), usize>,
+    heap: BinaryHeap<(State, Key)>,
+}
+
+impl<Key> Visited<Key> {
+    fn new() -> Self
+        where Key: Ord
+    {
+        let visited = HashMap::<(Key, usize, u64), usize>::new();
+        let heap = BinaryHeap::new();
+        Visited {visited, heap}
+    }
+
+    fn visit(&mut self, key: Key, state: &State)
+        where Key: Copy + Eq + Hash + Ord
+    {
+        let v = (key, state.remaining_time, state.flowing.flowing);
+        let old = self.visited.get(&v);
+        if old.is_none() || *old.unwrap() < state.flow {
+            self.visited.insert(v, state.flow);
+            self.heap.push((*state, key));
+        }
+    }
+}
+
 fn solution1(input: &str) -> usize {
     let (start, valves) = parse(input);
-    let mut visited = HashMap::<u8, State>::new();
-    let mut heap = BinaryHeap::<(State, u8)>::new();
-    let default_state = State::new(0);
+    let mut visited = Visited::<u8>::new();
     let start_state = State::new(30);
-    heap.push((start_state, start));
+    visited.visit(start, &start_state);
 
-    let mut i = 0;
     let mut max_flow = 0;
-    while let Some((state, valve_id)) = heap.pop() {
-        if i > 10000000 { break; }
-        i += 1;
-        let valve = &valves[&valve_id];
+    while let Some((state, id)) = visited.heap.pop() {
+        let mut states = Vec::<(State, u8)>::new();
+
+        let valve = &valves[&id];
+        if valve.rate > 0 && !state.flowing.is_open(id) && state.remaining_time > 1 {
+            let new = State {
+                flow: (state.remaining_time - 1) * valve.rate as usize,
+                remaining_time: 1,
+                flowing: state.flowing.with_opened(id),
+                opened: 1,
+            };
+            states.push((new, id));
+        }
+
         for next_id in &valve.next {
             let next = &valves[next_id];
-            let old = *visited.get(next_id).unwrap_or(&default_state);
 
             if next.rate > 0 && !state.flowing.is_open(*next_id) && state.remaining_time > 2 {
                 let flow = state.flow + (state.remaining_time - 2) * next.rate as usize;
@@ -118,10 +150,7 @@ fn solution1(input: &str) -> usize {
                         flowing: state.flowing.with_opened(*next_id),
                         opened: state.opened + 1,
                     };
-                    if new.remaining_time > old.remaining_time || new.flow > old.flow {
-                        heap.push((new, *next_id));
-                        visited.insert(*next_id, new);
-                    }
+                    states.push((new, *next_id));
                 }
             }
 
@@ -132,11 +161,12 @@ fn solution1(input: &str) -> usize {
                     flowing: state.flowing,
                     opened: state.opened,
                 };
-                if new.remaining_time > old.remaining_time || new.flow > old.flow {
-                    heap.push((new, *next_id));
-                    visited.insert(*next_id, new);
-                }
+                states.push((new, *next_id));
             }
+        }
+
+        for (state, id) in states {
+            visited.visit(id, &state);
         }
     }
 
@@ -146,25 +176,25 @@ fn solution1(input: &str) -> usize {
 fn solution2(input: &str) -> usize {
     let (start, valves) = parse(input);
     let max_opened = valves.iter().filter(|(_, v)| v.rate > 0).count();
-    let mut visited = HashMap::<((u8, u8), usize, u64), usize>::new();
-    let mut heap = BinaryHeap::<(State, (u8, u8))>::new();
+    let mut visited = Visited::<(u8, u8)>::new();
     let start_state = State::new(26);
-    heap.push((start_state, (start, start)));
+    visited.visit((start, start), &start_state);
 
     let mut i = 0;
     let mut max_flow = 0;
-    while let Some((state, (id1, id2))) = heap.pop() {
-        if i > 10000000 { println!("ABORT"); break; }
+    while let Some((state, (id1, id2))) = visited.heap.pop() {
+        if i > 4000000 { break; }
         i += 1;
 
         if state.opened == max_opened { continue; }
+        if state.remaining_time <= 1 { continue; }
 
         let mut s1 = Vec::<(State, u8)>::new();
         let mut s2 = Vec::<(State, u8)>::new();
 
         for (id, s) in [(id1, &mut s1), (id2, &mut s2)] {
             let valve = &valves[&id];
-            if valve.rate > 0 && !state.flowing.is_open(id) && state.remaining_time > 1 {
+            if valve.rate > 0 && !state.flowing.is_open(id) {
                 let new = State {
                     flow: (state.remaining_time - 1) * valve.rate as usize,
                     remaining_time: 1,
@@ -175,15 +205,13 @@ fn solution2(input: &str) -> usize {
             }
 
             for next_id in &valves[&id].next {
-                if state.remaining_time > 2 {
-                    let new = State {
-                        flow: 0,
-                        remaining_time: 1,
-                        flowing: state.flowing,
-                        opened: 0,
-                    };
-                    s.push((new, *next_id));
-                }
+                let new = State {
+                    flow: 0,
+                    remaining_time: 1,
+                    flowing: state.flowing,
+                    opened: 0,
+                };
+                s.push((new, *next_id));
             }
         }
 
@@ -201,11 +229,10 @@ fn solution2(input: &str) -> usize {
                     i = 0;
                 };
 
-                let time = u.remaining_time.max(v.remaining_time);
-                if state.remaining_time + 1 > time {
+                if state.remaining_time > 2 {
                     let new = State {
                         flow: flow,
-                        remaining_time: state.remaining_time - time,
+                        remaining_time: state.remaining_time - 1,
                         flowing: Flowing {
                             flowing: u.flowing.flowing | v.flowing.flowing
                         },
@@ -213,12 +240,7 @@ fn solution2(input: &str) -> usize {
                     };
 
                     let id = if id1 < id2 { (*id1, *id2) } else { (*id2, *id1) };
-                    let v = (id, new.remaining_time, new.flowing.flowing);
-                    let old = visited.get(&v);
-                    if old.is_none() || *old.unwrap() < new.flow {
-                        visited.insert(v, new.flow);
-                        heap.push((new, id));
-                    }
+                    visited.visit(id, &new);
                 }
             }
         }
