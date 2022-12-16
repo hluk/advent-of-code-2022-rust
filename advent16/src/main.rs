@@ -90,7 +90,7 @@ impl PartialOrd for State {
 }
 
 struct Visited<Key> {
-    visited: HashMap<(Key, usize, u64), usize>,
+    visited: HashMap<(Key, u64), (usize, usize)>,
     heap: BinaryHeap<(State, Key)>,
 }
 
@@ -98,7 +98,7 @@ impl<Key> Visited<Key> {
     fn new() -> Self
         where Key: Ord
     {
-        let visited = HashMap::<(Key, usize, u64), usize>::new();
+        let visited = HashMap::<(Key, u64), (usize, usize)>::new();
         let heap = BinaryHeap::new();
         Visited {visited, heap}
     }
@@ -106,12 +106,14 @@ impl<Key> Visited<Key> {
     fn visit(&mut self, key: Key, state: &State)
         where Key: Copy + Eq + Hash + Ord
     {
-        let v = (key, state.remaining_time, state.flowing.flowing);
-        let old = self.visited.get(&v);
-        if old.is_none() || *old.unwrap() < state.flow {
-            self.visited.insert(v, state.flow);
-            self.heap.push((*state, key));
+        let v = (key, state.flowing.flowing);
+        if let Some((time, flow)) = self.visited.get(&v).copied() {
+            if time <= state.remaining_time && flow >= state.flow {
+                return;
+            }
         }
+        self.visited.insert(v, (state.remaining_time, state.flow));
+        self.heap.push((*state, key));
     }
 }
 
@@ -123,8 +125,6 @@ fn solution1(input: &str) -> usize {
 
     let mut max_flow = 0;
     while let Some((state, id)) = visited.heap.pop() {
-        let mut states = Vec::<(State, u8)>::new();
-
         let valve = &valves[&id];
         if valve.rate > 0 && !state.flowing.is_open(id) && state.remaining_time > 1 {
             let new = State {
@@ -133,7 +133,7 @@ fn solution1(input: &str) -> usize {
                 flowing: state.flowing.with_opened(id),
                 opened: 1,
             };
-            states.push((new, id));
+            visited.visit(id, &new);
         }
 
         for next_id in &valve.next {
@@ -150,7 +150,7 @@ fn solution1(input: &str) -> usize {
                         flowing: state.flowing.with_opened(*next_id),
                         opened: state.opened + 1,
                     };
-                    states.push((new, *next_id));
+                    visited.visit(*next_id, &new);
                 }
             }
 
@@ -161,12 +161,8 @@ fn solution1(input: &str) -> usize {
                     flowing: state.flowing,
                     opened: state.opened,
                 };
-                states.push((new, *next_id));
+                visited.visit(*next_id, &new);
             }
-        }
-
-        for (state, id) in states {
-            visited.visit(id, &state);
         }
     }
 
