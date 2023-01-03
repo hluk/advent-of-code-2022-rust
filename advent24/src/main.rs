@@ -21,10 +21,11 @@ struct Map {
     h: usize,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 struct State {
     minutes: usize,
     pos: Pos,
+    return_times: u8,
 }
 
 impl PartialOrd for State {
@@ -139,9 +140,10 @@ fn lcm(a: usize, b: usize) -> usize {
     }
 }
 
-fn solution(m: &mut Map, start: Pos, exit: Pos) -> usize {
-    let mut minutes = 0;
-    let mut visited = HashSet::<(Pos, usize)>::new();
+fn solution(m: &mut Map, start: Pos, exit: Pos, return_times: u8) -> usize {
+    simulate(m);
+    let mut minutes = 1;
+    let mut visited = HashSet::<State>::new();
     let repeat = lcm(m.w, m.h);
 
     // wait until we can move
@@ -152,39 +154,58 @@ fn solution(m: &mut Map, start: Pos, exit: Pos) -> usize {
     }
 
     let mut heap = BinaryHeap::<State>::new();
-    heap.push(State{pos: start, minutes});
-    while let Some(s) = heap.pop() {
+    heap.push(State{pos: start, minutes, return_times});
+    while let Some(mut s) = heap.pop() {
         if RENDER {
-            println!("{} {} {},{}", minutes, s.minutes, s.pos.0, s.pos.1);
+            println!("{} {} {},{} {}", minutes, s.minutes, s.pos.0, s.pos.1, s.return_times);
         }
 
-        render(m, s.pos);
-        if minutes != s.minutes {
+        let (x, y) = s.pos;
+        let mut s2 = s;
+        s2.minutes = s.minutes % repeat;
+        if !visited.insert(s2) { continue; }
+
+        while minutes != s.minutes {
             simulate(m);
             minutes += 1;
         }
-        if minutes != s.minutes { panic!("Unexpected"); }
-        if s.pos == exit { return dbg!(s.minutes); }
 
-        let (x, y) = s.pos;
-        let v = minutes % repeat;
-        if visited.contains(&(s.pos, v)) { continue; }
-        visited.insert((s.pos, v));
+        if m.m.contains_key(&s.pos) { continue; }
+        render(m, s.pos);
 
+        let finish = if s.return_times & 1 == 0 { exit } else { start };
+        if s.pos == finish {
+            if s.return_times == 0 {
+                return dbg!(s.minutes + 1);
+            }
+
+            s.return_times -= 1;
+            for minutes in minutes..minutes + repeat {
+                s.minutes = minutes;
+                heap.push(s);
+            }
+            continue;
+        }
+
+        s.minutes = minutes + 1;
         if !m.m.contains_key(&s.pos) {
-            heap.push(State{pos: s.pos, minutes: minutes + 1});
+            heap.push(s);
         }
-        if y + 1 < m.h && !m.m.contains_key(&(x, y + 1)) {
-            heap.push(State{pos: (x, y + 1), minutes: minutes + 1});
+        if y + 1 < m.h {
+            s.pos = (x, y + 1);
+            heap.push(s);
         }
-        if y > 0 && !m.m.contains_key(&(x, y - 1)) {
-            heap.push(State{pos: (x, y - 1), minutes: minutes + 1});
+        if y > 0 {
+            s.pos = (x, y - 1);
+            heap.push(s);
         }
-        if x + 1 < m.w && !m.m.contains_key(&(x + 1, y)) {
-            heap.push(State{pos: (x + 1, y), minutes: minutes + 1});
+        if x + 1 < m.w {
+            s.pos = (x + 1, y);
+            heap.push(s);
         }
-        if x > 0 && !m.m.contains_key(&(x - 1, y)) {
-            heap.push(State{pos: (x - 1, y), minutes: minutes + 1});
+        if x > 0 {
+            s.pos = (x - 1, y);
+            heap.push(s);
         }
     }
 
@@ -195,16 +216,14 @@ fn solution1(input: &str) -> usize {
     let mut m = parse(input);
     let start = (0, 0);
     let exit = (m.w - 1, m.h - 1);
-    solution(&mut m, start, exit)
+    solution(&mut m, start, exit, 0)
 }
 
 fn solution2(input: &str) -> usize {
     let mut m = parse(input);
     let start = (0, 0);
     let exit = (m.w - 1, m.h - 1);
-    solution(&mut m, start, exit)
-    + solution(&mut m, exit, start)
-    + solution(&mut m, start, exit)
+    solution(&mut m, start, exit, 2)
 }
 
 fn read_file(file_path: &str) -> String {
