@@ -70,8 +70,6 @@ fn parse(input: &str) -> Map {
 }
 
 fn render(m: &Map, p: Pos) {
-    if !RENDER { return; }
-
     let render: String = (0..m.h).map(|y| {
         (0..m.w).map(|x| {
             let p2 = (x, y);
@@ -156,10 +154,6 @@ fn solution(m: &mut Map, start: Pos, exit: Pos, return_times: u8) -> usize {
     let mut heap = BinaryHeap::<State>::new();
     heap.push(State{pos: start, minutes, return_times});
     while let Some(mut s) = heap.pop() {
-        if RENDER {
-            println!("{} {} {},{} {}", minutes, s.minutes, s.pos.0, s.pos.1, s.return_times);
-        }
-
         let (x, y) = s.pos;
         let mut s2 = s;
         s2.minutes = s.minutes % repeat;
@@ -171,7 +165,11 @@ fn solution(m: &mut Map, start: Pos, exit: Pos, return_times: u8) -> usize {
         }
 
         if m.m.contains_key(&s.pos) { continue; }
-        render(m, s.pos);
+
+        if RENDER {
+            println!("{} {} {},{} {}", minutes, s.minutes, s.pos.0, s.pos.1, s.return_times);
+            render(m, s.pos);
+        }
 
         let finish = if s.return_times & 1 == 0 { exit } else { start };
         if s.pos == finish {
@@ -180,7 +178,7 @@ fn solution(m: &mut Map, start: Pos, exit: Pos, return_times: u8) -> usize {
             }
 
             s.return_times -= 1;
-            for minutes in minutes..minutes + repeat {
+            for minutes in minutes + 1..minutes + repeat {
                 s.minutes = minutes;
                 heap.push(s);
             }
